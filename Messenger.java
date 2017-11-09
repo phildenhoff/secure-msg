@@ -26,6 +26,10 @@ public class Messenger implements Message {
     private CIA me;
 
     /* Server-only functions */
+
+    /**
+     * Setup secure-msg server. Connects (and initizalises) RMI registrry with name from user.
+     */
     public void server_setup () {
         // Create messenger object as stub to allow other applications to connect
         try {
@@ -149,6 +153,11 @@ public class Messenger implements Message {
         displayMsg(msg);
     }
 
+    /**
+     * Receive packages from remote system, decrypts if need be, verifies integrity, and displays messages.
+     * 
+     * @param MessagePackage: package to receive
+     */
     @Override
     public void receivePackage (MessagePackage pkg) {
         try {
@@ -195,6 +204,9 @@ public class Messenger implements Message {
         else this.auth = true;
     }
 
+    /**
+     * General waiting state after the system is set up. Users are able to input text at any time.
+     */
     public void pollForInput () {
         while (true) {
             String msg = promptStrInput("");
@@ -268,22 +280,25 @@ public class Messenger implements Message {
         }
     }
 
+    /**
+     * Lists servers in registry and prompts user to select a server to connect to.
+     */
     private Message pickServer (Registry reg) {
         Message stub = null;
         String[] servers;
 
         try {
             servers = reg.list();
-            System.out.println("Available servers:");
+            displayMsg("Available servers:");
             for (String server : servers) {
-                System.out.println("\t" + server);
+                displayMsg("\t" + server);
             }
             while (stub == null) {
                 try {
                     stub = (Message) reg.lookup(this.regName());
                 } catch (NotBoundException e) {
                     // TODO: Replace with displayErr();
-                    System.out.println("\nError: Invalid server name.");
+                    displayError("\nError: Invalid server name.");
                 }
             }
             return stub;
@@ -294,6 +309,11 @@ public class Messenger implements Message {
     }
 
     /* Startup */
+
+    /**
+     * Set up Messenger, whether client or server. Get security options, generate CIA, prompt for authentication, and check if
+     * program is server or client.
+     */
     public void setup () {
         setSecurityOptions();
 

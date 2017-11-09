@@ -70,10 +70,9 @@ class CIA {
 		return new String(decryptCipher.doFinal(bytes), UTF_8);
 	}
 	
-	//NOTE: need to change all pub instances to theirPublic
 	public String encryptTheirPublic(String message) throws Exception {
 		Cipher encryptCipher = Cipher.getInstance("RSA");
-		encryptCipher.init(Cipher.ENCRYPT_MODE, pub);
+		encryptCipher.init(Cipher.ENCRYPT_MODE, theirPublic);
 		byte[] cipherText = encryptCipher.doFinal(message.getBytes(UTF_8));
 		return Base64.getEncoder().encodeToString(cipherText);
 	}
@@ -93,10 +92,9 @@ class CIA {
 		return Base64.getEncoder().encodeToString(signature);
 	}
 	
-	//NOTE: need to change all pub instances to theirPublic
 	public boolean verifySignature(String message, String signature) throws Exception {
 		Signature publicSign = Signature.getInstance("SHA256withRSA");
-		publicSign.initVerify(pub);
+		publicSign.initVerify(theirPublic);
 		publicSign.update(message.getBytes(UTF_8));
 		byte[] signatureBytes = Base64.getDecoder().decode(signature);
 		return publicSign.verify(signatureBytes);	

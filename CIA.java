@@ -31,14 +31,8 @@ class CIA {
      * @param boolean authentication: True if authentication selected
      */
 	public CIA(boolean confidentiality, boolean integrity, boolean authentication) throws Exception {
-		if(confidentiality){
+		if(confidentiality || integrity){
 			generateAsymmetricKeys();
-			generateSymmetricKey();
-		}
-		if(integrity){
-			if(pub != null && pvt != null){
-				generateAsymmetricKeys();
-			}
 		}
 	}
 	
@@ -69,6 +63,15 @@ class CIA {
      */
 	public void setTheirPublicKey(PublicKey theirPub) throws Exception {
 		theirPublic = theirPub;
+	}
+	
+	/**
+     * Sets the symmetric key.
+	 * 
+	 * @param SecretKey symmetric: the symmetric key to be used for symmetric encryption
+     */
+	public void setSymmetricKey(SecretKey symmetric){
+		this.symmetric = symmetric;
 	}
 	
 	/**

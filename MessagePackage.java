@@ -12,7 +12,8 @@ class MessagePackage implements java.io.Serializable {
     private byte[] iv;
     private boolean[] options;
     private PublicKey pubKey;
-	private SecretKey symmetricKey;
+    private SecretKey symmetricKey;
+    private String deviceName;
 
     /**
      * Construct a MessagePackage.
@@ -78,6 +79,14 @@ class MessagePackage implements java.io.Serializable {
 
     public PublicKey getPublicKey () {
        return this.pubKey;
+    }
+
+    public void setDeviceName (String deviceName) {
+        this.deviceName = deviceName;
+    }
+
+    public String getDeviceName () {
+        return this.deviceName;
     }
 
 }

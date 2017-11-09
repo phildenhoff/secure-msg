@@ -1,5 +1,6 @@
 import static java.nio.charset.StandardCharsets.UTF_8;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.security.*;
 import javax.crypto.*;
@@ -72,6 +73,26 @@ class CIA {
      */
 	public void setSymmetricKey(SecretKey symmetric){
 		this.symmetric = symmetric;
+	}
+	
+	/**
+     * Changes the symmetric key into a String
+	 * 
+	 * @return the symmetric key as a String
+     */
+	public String secretKeyToString(){
+		return Base64.getEncoder().encodeToString(symmetric.getEncoded());
+	}
+	
+	/**
+     * Takes the String secretKey and converts it back to a SecretKey object
+	 * 
+	 * @param String secretKey: the String representation of the symmetric key
+     */
+	public void stringToSecretKey(String secretKey){
+		byte[] decodedKey = Base64.getDecoder().decode(secretKey);
+		SecretKey originalKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
+		symmetric = originalKey;
 	}
 	
 	/**
@@ -243,6 +264,13 @@ class CIA {
 		System.out.println(hash2);
 		System.out.println(hash3);
 		System.out.println(hash4);
+		
+		generateSymmetricKey();
+		System.out.println(symmetric);
+		String symmetricString = secretKeyToString();
+		System.out.println(symmetricString);
+		SecretKey result = stringToSecretKey(symmetricString);
+		System.out.println(result);
 	}
 	
 	public static void main(String[] args) throws Exception {

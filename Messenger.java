@@ -17,13 +17,31 @@ import java.nio.file.Paths;
 import java.util.stream.Stream;
 
 public class Messenger implements Message {
-    private boolean isServer = false;
-    private boolean conf;
-    private boolean integ;
-    private boolean auth;
-    private String hashedPass;
-    private Message stub;
-    private CIA me;
+    /**
+	 * True if the device is the server
+	 */
+	private boolean isServer = false;
+    /**
+	 * True if user selected confidentiality
+	 */
+	private boolean conf;
+    /**
+	 * True if user selected integrity
+	 */
+	private boolean integ;
+    /**
+	 * True if user selected authentication
+	 */
+	private boolean auth;
+	private String hashedPass;
+    /**
+	 * The client's connection to the server
+	 */
+	private Message stub;
+    /**
+	 * Our instance of the CIA class
+	 */
+	private CIA me;
 
     /* Server-only functions */
 

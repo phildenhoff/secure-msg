@@ -12,7 +12,7 @@ class MessagePackage implements java.io.Serializable {
     private byte[] iv;
     private boolean[] options;
     private PublicKey pubKey;
-    private SecretKey symmetricKey;
+    private String symmetricKey;
     private String deviceName;
 
     /**
@@ -50,7 +50,7 @@ class MessagePackage implements java.io.Serializable {
      * @return fingerprint as a String
      */
     public String getFingerprint () {
-        return this.msg;
+        return this.fp;
     }
 
     public void setInitOptions (boolean conf, boolean integ, boolean auth) {
@@ -65,11 +65,15 @@ class MessagePackage implements java.io.Serializable {
         return iv;
     }
 
-    public void setSymmSecretKey (SecretKey symmetricKey) {
+    public void setIV (byte[] iv) {
+        this.iv = iv;
+    }
+
+    public void setSymmSecretKey (String symmetricKey) {
         this.symmetricKey = symmetricKey;
     }
 
-    public SecretKey getSymmSecretKey () {
+    public String getSymmSecretKey () {
        return this.symmetricKey;
     }
 

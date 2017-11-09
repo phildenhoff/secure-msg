@@ -10,7 +10,6 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Scanner;
-
 // File reading
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -21,8 +20,9 @@ public class Messenger implements Message {
     private boolean conf;
     private boolean integ;
     private boolean auth;
-    private String hashedPass;
+    private String localName;
     private Message stub;
+    private Message theirStub;
     private CIA me;
 
     /* Server-only functions */
@@ -34,27 +34,38 @@ public class Messenger implements Message {
         // Create messenger object as stub to allow other applications to connect
         try {
             Message serverStub = (Message) UnicastRemoteObject.exportObject(this, 0);
-            Boolean notConnected = true;
-
-            // Bind the servers' object in the registry
-            Registry reg = LocateRegistry.getRegistry();
-            String name = this.regName();
-            while (notConnected) {
-                try {
-                    reg.bind(name, serverStub);
-    
-                    displayMsg(">>> SERVER READY");
-                    displayMsg(">>> NAME: " + name);
-                    notConnected = false;
-                } catch (ConnectException e) {
-                    java.rmi.registry.LocateRegistry.createRegistry(1099);
-                } catch (Exception e) {
-                    displayError(e);
-                }
-            }
-            return;
+            registerWithRMI(serverStub);
         } catch (Exception e) {
             displayError(e);
+        }
+    }
+
+    /**
+     * Register with registry to allow 2-way RMI communication. Sets localName.
+     * 
+     * @param Message serverStub : registry to register with.
+     */
+    public void registerWithRMI (Message serverStub) throws Exception {
+        // Bind the servers' object in the registry
+        Registry reg = LocateRegistry.getRegistry();
+        Boolean notConnected = true;
+        if (isServer) {
+            localName = this.regName();            
+        } else {
+            localName = "client";
+        }
+        while (notConnected) {
+            try {
+                reg.bind(localName, serverStub);
+
+                displayMsg(">>> DEVICE READY");
+                displayMsg(">>> NAME: " + localName);
+                notConnected = false;
+            } catch (ConnectException e) {
+                java.rmi.registry.LocateRegistry.createRegistry(1099);
+            } catch (Exception e) {
+                displayError(e);
+            }
         }
     }
 
@@ -81,7 +92,24 @@ public class Messenger implements Message {
             badOptions += "'auth' ";
             validInit = false;
         }
-        if (badOptions != "" ) displayError("User tried to connect with incorrect " + badOptions + "option(s).");        
+        if (badOptions != "" ) displayError("User tried to connect with incorrect " + badOptions + "option(s).");
+
+        try {
+            Registry reg = LocateRegistry.getRegistry();            
+            theirStub = (Message) reg.lookup(pkg.getDeviceName());
+        } catch (NotBoundException e) {
+            displayError("\nError: Invalid device name.");
+        } catch (Exception e) {
+            displayError(e);
+        }
+        try {
+            theirStub.receiveMessage(localName + " connected to you!");
+        } catch (Exception e) {
+            displayError("Unable to send message");
+            displayError(e);
+        }
+        
+        displayMsg(pkg.getDeviceName());
         // Get public key
         // TODO: ADD PUBLIC KEY
 
@@ -174,7 +202,8 @@ public class Messenger implements Message {
      */
     public void sendPackage (MessagePackage pkg) {
         try {
-            stub.receivePackage (pkg);
+            if (isServer) theirStub.receivePackage(pkg);
+            else stub.receivePackage (pkg);
         } catch (Exception e) {
             displayError("Message not delivered: \'" + pkg.getMessage() + "\'");
             displayError(e);
@@ -220,7 +249,8 @@ public class Messenger implements Message {
             }
             displayMsg(msg);
             // if (integ) fp = fingerprint(message); 
-            MessagePackage pkg = (fp != "") ? new MessagePackage(msg, fp) : new MessagePackage(msg);
+            // MessagePackage pkg = (fp != "") ? new MessagePackage(msg, fp) : new MessagePackage(msg);
+            MessagePackage pkg = new MessagePackage(msg, fp);
             sendPackage(pkg);
         }
     }
@@ -263,9 +293,12 @@ public class Messenger implements Message {
         try {
             Registry reg = LocateRegistry.getRegistry(host);
             stub = pickServer(reg);
+            Message serverStub = (Message) UnicastRemoteObject.exportObject(this, 0);            
+            registerWithRMI(serverStub);
 
             MessagePackage initPackage = new MessagePackage("Initilization from Client to Server");
             initPackage.setInitOptions(conf, integ, auth);
+            initPackage.setDeviceName(localName);
             boolean connected = stub.initConnection(initPackage);
             if (connected) displayMsg("Connected to server.");
             else {

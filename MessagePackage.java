@@ -5,6 +5,7 @@ import java.io.Serializable;
 class MessagePackage implements java.io.Serializable {
     private String msg;
     private String fp;
+    private byte[] iv;
     private boolean[] options;
 
     /**
@@ -51,5 +52,9 @@ class MessagePackage implements java.io.Serializable {
 
     public boolean[] getOptions () {
         return options;
+    }
+
+    public byte[] getIV () {
+        return iv;
     }
 }

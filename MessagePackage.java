@@ -1,4 +1,6 @@
 import java.io.Serializable;
+import java.security.*;
+import javax.crypto.*;
 /**
  * Defines a MessagePackage to send to the other system
  */
@@ -62,7 +64,7 @@ class MessagePackage implements java.io.Serializable {
         return iv;
     }
 
-    public SecretKey setSymmSecretKey (SecretKey symmetricKey) {
+    public void setSymmSecretKey (SecretKey symmetricKey) {
         this.symmetricKey = symmetricKey;
     }
 
@@ -70,7 +72,7 @@ class MessagePackage implements java.io.Serializable {
        return this.symmetricKey;
     }
 
-    public PublicKey setPublicKey (PublicKey pubKey) {
+    public void setPublicKey (PublicKey pubKey) {
         this.pubKey = pubKey;
     }
 

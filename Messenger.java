@@ -1,13 +1,20 @@
-// Error handling
+// Exceptions
 import java.rmi.ConnectException;
 import java.rmi.RemoteException;
 import java.rmi.NotBoundException;
+import java.io.IOException;
+
 // Importations
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Scanner;
+
+// File reading
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
 
 public class Messenger implements Message {
     private boolean isServer = false;
@@ -151,6 +158,11 @@ public class Messenger implements Message {
         }
     }
 
+    /**
+     * Send MessagePackage from local to remote (client to server or vice versa).
+     * 
+     * @param MessagePackage: pkg to send
+     */
     public void sendPackage (MessagePackage pkg) {
         try {
             stub.receivePackage (pkg);
@@ -199,6 +211,34 @@ public class Messenger implements Message {
             MessagePackage pkg = (fp != "") ? new MessagePackage(msg, fp) : new MessagePackage(msg);
             sendPackage(pkg);
         }
+    }
+
+    private boolean authenticate() {
+        boolean authenticated = false;
+        String fileName = "./secure/pass";
+        String localPass = "";
+        String hashedLocal;
+        String inputPass;
+        String hashedInput;
+        //read file into stream, try-with-resources
+        try {
+            localPass = new String(Files.readAllBytes(Paths.get(fileName))).replaceAll("\\s+","");
+            hashedLocal = me.hashString(localPass);
+            inputPass = promptStrInput("Enter password:").replaceAll("\\s+","");
+            hashedInput = me.hashString(inputPass);
+            if (hashedInput.equals(hashedLocal)) authenticated = true;
+            else {
+                displayMsg("Password does not match.");
+            }
+        } catch (IOException e) {
+            displayError("/secure/pass file missing or inaccessible");
+            displayError(e);
+            System.exit(1);
+        } catch (Exception e) {
+            displayError(e);
+        }
+        // Return that the hashes are the same
+        return authenticated;
     }
 
     /* Client-only functions */
@@ -252,12 +292,18 @@ public class Messenger implements Message {
     /* Startup */
     public void setup () {
         setSecurityOptions();
+
         // Generate a new CIA file with given options
         try {
             me = new CIA(conf, integ, auth);        
         } catch (Exception e) {
             displayError("Not able to generate a CIA file.");
             displayError(e);
+        }
+
+        // Check password if auth
+        if (auth) {
+            if (!authenticate()) System.exit(1);
         }
 
         // Pick client or server

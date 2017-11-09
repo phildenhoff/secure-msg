@@ -95,7 +95,8 @@ public class Messenger implements Message {
 
     /**
      * Connect only if we can prove their init message follows all our requirements.
-     * @param MessagePackage: pkg should include security options, fingerprint (if necessary), public key, and symmetric key.
+     * 
+	 * @param MessagePackage: pkg should include security options, fingerprint (if necessary), public key, and symmetric key.
      */
     @Override
     public boolean initConnection (MessagePackage pkg) {
@@ -235,7 +236,7 @@ public class Messenger implements Message {
     }
 
     /**
-     * Let user select server name from registry
+     * Let user select server name from registry.
      */
     public String regName () {
         String mode = (isServer) ? "SERVER MODE" : "CLIENT MODE";

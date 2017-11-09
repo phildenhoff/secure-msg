@@ -36,7 +36,7 @@ class MessagePackage implements java.io.Serializable {
     }
 
     /**
-     * Returns the message from a MessagePackage
+     * Returns the message from a MessagePackage.
      * 
      * @return message as a String
      */
@@ -45,7 +45,7 @@ class MessagePackage implements java.io.Serializable {
     }
 
     /**
-     * Returns the fingerprint from a MessagePackage
+     * Returns the fingerprint from a MessagePackage.
      * 
      * @return fingerprint as a String
      */
@@ -54,7 +54,7 @@ class MessagePackage implements java.io.Serializable {
     }
 
 	/**
-     * Sets initialization options for confidentiality, integrity, and authentication
+     * Sets initialization options for confidentiality, integrity, and authentication.
      * 
      * @param boolean conf: True if confidentiality selected
      * @param boolean integ: True if integrity selected
@@ -65,7 +65,7 @@ class MessagePackage implements java.io.Serializable {
     }
 
 	/**
-     * Returns the boolean array containing selected options for confidentiality, integrity, and authentication
+     * Returns the boolean array containing selected options for confidentiality, integrity, and authentication.
      * 
      * @return options as a boolean array
      */
@@ -74,7 +74,7 @@ class MessagePackage implements java.io.Serializable {
     }
 
 	/**
-     * Returns the initialization vector used for encryption
+     * Returns the initialization vector used for encryption.
      * 
      * @return iv as a byte array
      */
@@ -83,14 +83,14 @@ class MessagePackage implements java.io.Serializable {
     }
 
 	/**
-     * Sets the symmetric key
+     * Sets the symmetric key.
      */
     public void setSymmSecretKey (SecretKey symmetricKey) {
         this.symmetricKey = symmetricKey;
     }
 
 	/**
-     * Returns the symmetric key
+     * Returns the symmetric key.
      * 
      * @return the symmetric key used as a SecretKey
      */
@@ -99,14 +99,14 @@ class MessagePackage implements java.io.Serializable {
     }
 
 	/**
-     * Sets the public key
+     * Sets the public key.
      */
     public void setPublicKey (PublicKey pubKey) {
         this.pubKey = pubKey;
     }
 
 	/**
-     * Returns the fingerprint from a MessagePackage
+     * Returns the fingerprint from a MessagePackage.
      * 
      * @return pubKey as a public key
      */
@@ -115,14 +115,14 @@ class MessagePackage implements java.io.Serializable {
     }
 
 	/**
-     * Sets the device name
+     * Sets the device name.
      */
     public void setDeviceName (String deviceName) {
         this.deviceName = deviceName;
     }
 
 	/**
-     * Returns the device name
+     * Returns the device name.
      * 
      * @return deviceName as String
      */

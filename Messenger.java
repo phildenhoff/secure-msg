@@ -8,37 +8,75 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Scanner;
-import java.util.Scanner;
 
 public class Messenger implements Message {
     private boolean isServer = false;
-    boolean conf;
-    boolean integ;
-    boolean auth;
-    String hashedPass;
+    private boolean conf;
+    private boolean integ;
+    private boolean auth;
+    private String hashedPass;
+    private Message stub;
+    private CIA me;
 
     /* Server-only functions */
     public void server_setup () {
         // Create messenger object as stub to allow other applications to connect
         try {
-            Messenger obj = new Messenger();
-            Message stub = (Message) UnicastRemoteObject.exportObject(obj, 0);
+            Message serverStub = (Message) UnicastRemoteObject.exportObject(this, 0);
+            Boolean notConnected = true;
 
             // Bind the servers' object in the registry
-            try {
-                Registry reg = LocateRegistry.getRegistry();
-                String name = this.regName();
-                reg.bind(name, stub);
-
-                displayMsg(">>> SERVER READY");
-                displayMsg(">>> NAME: " + name);
-            } catch (Exception e) {
-                displayError(e);
+            Registry reg = LocateRegistry.getRegistry();
+            String name = this.regName();
+            while (notConnected) {
+                try {
+                    reg.bind(name, serverStub);
+    
+                    displayMsg(">>> SERVER READY");
+                    displayMsg(">>> NAME: " + name);
+                    notConnected = false;
+                } catch (ConnectException e) {
+                    java.rmi.registry.LocateRegistry.createRegistry(1099);
+                } catch (Exception e) {
+                    displayError(e);
+                }
             }
             return;
         } catch (Exception e) {
             displayError(e);
         }
+    }
+
+    /**
+     * Connect only if we can prove their init message follows all our requirements.
+     * @param MessagePackage: pkg should include security options, fingerprint (if necessary), public key, and symmetric key.
+     */
+    @Override
+    public boolean initConnection (MessagePackage pkg) {
+        boolean validInit = true;
+        
+        // Check options
+        boolean[] theirOptions = pkg.getOptions();
+        String badOptions = "";
+        if (theirOptions[0] != this.conf) {
+            badOptions += "'conf' ";
+            validInit = false;
+        }
+        if (theirOptions[1] != this.integ) {
+            badOptions += "'integ' ";
+            validInit = false;
+        }
+        if (theirOptions[1] != this.auth) {
+            badOptions += "'auth' ";
+            validInit = false;
+        }
+        if (badOptions != "" ) displayError("User tried to connect with incorrect " + badOptions + "option(s).");        
+        // Get public key
+        // TODO: ADD PUBLIC KEY
+
+        //
+
+        return validInit;
     }
 
     /* General functions*/
@@ -98,11 +136,33 @@ public class Messenger implements Message {
     }
 
     @Override
+    @Deprecated
     public void receiveMessage (String msg) {
         // should check for all the authentication & such
         displayMsg(msg);
     }
 
+    @Override
+    public void receivePackage (MessagePackage pkg) {
+        try {
+            displayMsg(pkg.getMessage());
+        } catch (Exception e) {
+            displayError(e);
+        }
+    }
+
+    public void sendPackage (MessagePackage pkg) {
+        try {
+            stub.receivePackage (pkg);
+        } catch (Exception e) {
+            displayError("Message not delivered: \'" + pkg.getMessage() + "\'");
+            displayError(e);
+        }
+    }
+
+    /**
+     * Let user select server name from registry
+     */
     public String regName () {
         String mode = (isServer) ? "SERVER MODE" : "CLIENT MODE";
         System.out.printf("(%s) Enter the server name:%n", mode);
@@ -115,20 +175,29 @@ public class Messenger implements Message {
      */
     public void setSecurityOptions () {
         displayMsg("What security options would you like? You'll be prompted for a numerical response, and options are default-on.");
-        if (promptIntInput("Confidentiality: [0/1]") == 0) conf = false;
-        else conf = true;
-        if (promptIntInput("Integrity: [0/1]") == 0) integ = false;
-        else integ = true;
-        if (promptIntInput("Authentication: [0/1]") == 0) auth = false;
-        else auth = true;
-
-        return;
+        if (promptIntInput("Confidentiality: [0/1]") == 0) this.conf = false;
+        else this.conf = true;
+        if (promptIntInput("Integrity: [0/1]") == 0) this.integ = false;
+        else this.integ = true;
+        if (promptIntInput("Authentication: [0/1]") == 0) this.auth = false;
+        else this.auth = true;
     }
 
     public void pollForInput () {
         while (true) {
-            String message = promptStrInput("");
-
+            String msg = promptStrInput("");
+            String fp = "";
+            byte[] iv = me.generateIV();
+            try {
+                if (conf) msg = me.encryptSymmetric(msg, iv);
+            } catch (Exception e) {
+                displayError("Unable to enrypt messages.");
+                displayError(e);
+            }
+            displayMsg(msg);
+            // if (integ) fp = fingerprint(message); 
+            MessagePackage pkg = (fp != "") ? new MessagePackage(msg, fp) : new MessagePackage(msg);
+            sendPackage(pkg);
         }
     }
 
@@ -137,9 +206,17 @@ public class Messenger implements Message {
         String host = null;
         try {
             Registry reg = LocateRegistry.getRegistry(host);
-            Message stub = pickServer(reg);
+            stub = pickServer(reg);
 
-            stub.receiveMessage("Test message to test sending messages from C -> S");
+            MessagePackage initPackage = new MessagePackage("Initilization from Client to Server");
+            initPackage.setInitOptions(conf, integ, auth);
+            boolean connected = stub.initConnection(initPackage);
+            if (connected) displayMsg("Connected to server.");
+            else {
+                displayError("Disconnected from server. Check security options.");
+                System.exit(1);
+            }
+            // stub.receiveMessage("Test message to test sending messages from C -> S");
         } catch (ConnectException e) {
             displayError("Error: Server refused to connect.");
         } catch (Exception e) {
@@ -175,6 +252,14 @@ public class Messenger implements Message {
     /* Startup */
     public void setup () {
         setSecurityOptions();
+        // Generate a new CIA file with given options
+        try {
+            me = new CIA(conf, integ, auth);        
+        } catch (Exception e) {
+            displayError("Not able to generate a CIA file.");
+            displayError(e);
+        }
+
         // Pick client or server
         String mode = this.promptStrInput("Are you a client or the server? [C/S]").toLowerCase();
         if (mode.equals("s")) {

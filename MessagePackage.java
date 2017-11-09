@@ -2,11 +2,15 @@ import java.io.Serializable;
 /**
  * Defines a MessagePackage to send to the other system
  */
+
+import javax.crypto.SecretKey;
 class MessagePackage implements java.io.Serializable {
     private String msg;
     private String fp;
     private byte[] iv;
     private boolean[] options;
+    private PublicKey pubKey;
+	private SecretKey symmetricKey;
 
     /**
      * Construct a MessagePackage.
@@ -57,4 +61,21 @@ class MessagePackage implements java.io.Serializable {
     public byte[] getIV () {
         return iv;
     }
+
+    public SecretKey setSymmSecretKey (SecretKey symmetricKey) {
+        this.symmetricKey = symmetricKey;
+    }
+
+    public SecretKey getSymmSecretKey () {
+       return this.symmetricKey;
+    }
+
+    public PublicKey setPublicKey (PublicKey pubKey) {
+        this.pubKey = pubKey;
+    }
+
+    public PublicKey getPublicKey () {
+       return this.pubKey;
+    }
+
 }

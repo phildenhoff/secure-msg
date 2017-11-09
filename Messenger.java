@@ -40,8 +40,14 @@ public class Messenger implements Message {
 	 * Our instance of the CIA class
 	 */
 	private CIA me;
-    private String localName;
-    private Message theirStub;
+    /**
+	 * The device's name in the RMI registry
+	 */
+	private String localName;
+    /**
+	 * The server's connection to the client
+	 */
+	private Message theirStub;
 
     /* Server-only functions */
 

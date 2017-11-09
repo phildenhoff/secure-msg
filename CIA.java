@@ -5,7 +5,7 @@ import java.util.Base64;
 import java.security.*;
 import javax.crypto.*;
 
-class CIA {
+public class CIA {
 	
 	/**
      * This person's public key.
@@ -89,16 +89,17 @@ class CIA {
 	 * 
 	 * @param String secretKey: the String representation of the symmetric key
      */
-	public void stringToSecretKey(String secretKey){
+	public SecretKey stringToSecretKey(String secretKey){
 		byte[] decodedKey = Base64.getDecoder().decode(secretKey);
 		SecretKey originalKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
 		symmetric = originalKey;
+		return originalKey;
 	}
 	
 	/**
      * Returns the symmetric key.
 	 * 
-	 * @return symmetric
+	 * @return the symmetric key
      */
 	public SecretKey getSymmetricKey(){
 		return symmetric;
@@ -107,7 +108,7 @@ class CIA {
 	/**
      * Returns the public key.
 	 * 
-	 * @return pub
+	 * @return the public key
      */
 	public PublicKey getOurPublicKey(){
 		return pub;

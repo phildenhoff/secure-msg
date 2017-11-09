@@ -115,6 +115,15 @@ public class CIA {
 	}
 	
 	/**
+     * Returns their public key.
+	 * 
+	 * @return their public key
+     */
+	public PublicKey getTheirPublicKey(){
+		return theirPub;
+	}
+	
+	/**
      * Generates and returns a byte array used as an initialization vector for encryption.
 	 * 
 	 * @return iv for encryption

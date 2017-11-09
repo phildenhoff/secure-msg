@@ -2,6 +2,7 @@
 import java.rmi.ConnectException;
 import java.rmi.RemoteException;
 import java.rmi.NotBoundException;
+import java.rmi.AlreadyBoundException;
 import java.io.IOException;
 
 // Importations
@@ -10,13 +11,22 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
+import java.util.Base64;
+import java.security.*;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import com.sun.media.jfxmedia.events.NewFrameEvent;
+
 // File reading
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.stream.Stream;
+
 
 public class Messenger implements Message {
     private boolean isServer = false;
+    private boolean clientConnected = false;
     private boolean conf;
     private boolean integ;
     private boolean auth;
@@ -61,10 +71,13 @@ public class Messenger implements Message {
                 displayMsg(">>> DEVICE READY");
                 displayMsg(">>> NAME: " + localName);
                 notConnected = false;
+            } catch (AlreadyBoundException e ) {
+                localName += ".1";
             } catch (ConnectException e) {
-                java.rmi.registry.LocateRegistry.createRegistry(1099);
+                java.rmi.registry.LocateRegistry.createRegistry(1099);                
             } catch (Exception e) {
                 displayError(e);
+                localName += ".1";                
             }
         }
     }
@@ -74,7 +87,7 @@ public class Messenger implements Message {
      * @param MessagePackage: pkg should include security options, fingerprint (if necessary), public key, and symmetric key.
      */
     @Override
-    public boolean initConnection (MessagePackage pkg) {
+    public void initConnection (MessagePackage pkg) {
         boolean validInit = true;
         
         // Check options
@@ -92,30 +105,46 @@ public class Messenger implements Message {
             badOptions += "'auth' ";
             validInit = false;
         }
-        if (badOptions != "" ) displayError("User tried to connect with incorrect " + badOptions + "option(s).");
+        if (badOptions != "" )  {
+            displayError("User tried to connect with incorrect " + badOptions + "option(s).");
+            return;
+        }
 
+        // Try to connect to device via registry
         try {
             Registry reg = LocateRegistry.getRegistry();            
             theirStub = (Message) reg.lookup(pkg.getDeviceName());
+
+            // Read message and relay conection succeeded
+            if (conf) me.setTheirPublicKey(pkg.getPublicKey());
+            // Tell client we are connected
+            theirStub.receiveMessage(localName + " connected to you!");
+            
+            // Respond with our public key
+            String fp = "";
+            MessagePackage resp;
+            String msg = "PUBKEY";
+            // If integrity, sign message and include;
+            if (integ) {
+                fp = me.sign(msg);
+                resp = new MessagePackage(msg, fp);
+            } else {
+                resp = new MessagePackage(msg);
+            }
+            // If confidentiality, include our public key
+            if (conf) {
+                resp.setPublicKey(me.getOurPublicKey());
+            }
+
+            displayMsg("Sending fp " + resp.getFingerprint() +"\nSending pub " + resp.getPublicKey());
+            theirStub.receivePackage(resp);
+            
         } catch (NotBoundException e) {
             displayError("\nError: Invalid device name.");
         } catch (Exception e) {
+            displayError("Unable to connect to device.");            
             displayError(e);
         }
-        try {
-            theirStub.receiveMessage(localName + " connected to you!");
-        } catch (Exception e) {
-            displayError("Unable to send message");
-            displayError(e);
-        }
-        
-        displayMsg(pkg.getDeviceName());
-        // Get public key
-        // TODO: ADD PUBLIC KEY
-
-        //
-
-        return validInit;
     }
 
     /* General functions*/
@@ -137,6 +166,7 @@ public class Messenger implements Message {
     public void displayError (Exception e) {
         System.err.println((char) 27 + "[31m Client exception: " + e.toString());
         e.printStackTrace();
+        System.err.println((char) 27 + "[0m");
     }
     /**
      * Display an error to the user.
@@ -144,7 +174,7 @@ public class Messenger implements Message {
      * @param String exception to display
      */
     public void displayError (String msg) {
-        System.err.println( (char) 27 + "[31mERROR: " + msg);
+        System.err.println( (char) 27 + "[31mERROR: " + msg + (char) 27 + "[0m");
     }
 
     /**
@@ -188,8 +218,75 @@ public class Messenger implements Message {
      */
     @Override
     public void receivePackage (MessagePackage pkg) {
+        boolean goodFingerprint;
+        String msg = pkg.getMessage();
+
+        // Display the pieces of the package
+        // displayMsg("fp: " + pkg.getFingerprint());
+        // displayMsg("msg: " + pkg.getMessage());
+        // displayMsg("sym: " + pkg.getSymmSecretKey());
+        // displayMsg("Pub: " + pkg.getPublicKey());
+
+        // Check to see if we're receiving a public key.
+        // If so, create a symmetric key, ecnrypt it, and send it back.
         try {
-            displayMsg(pkg.getMessage());
+            if (msg.equals("PUBKEY") && pkg.getPublicKey() != null) {
+                displayMsg("Setting remote's public key");
+                me.setTheirPublicKey(pkg.getPublicKey());
+                me.generateSymmetricKey();
+                SecretKey sym = me.getSymmetricKey();
+                String symKey = Base64.getEncoder().encodeToString(sym.getEncoded());
+                symKey = me.encryptTheirPublic(symKey);
+
+                MessagePackage resp;
+                String respMsg = "SYMKEY";
+                if (integ) resp = new MessagePackage(respMsg, me.sign(respMsg));
+                else resp = new MessagePackage(respMsg);
+                resp.setSymmSecretKey(symKey);
+
+                stub.receivePackage(resp);
+                return;
+            } else if (msg.equals("PUBKEY")) {
+                displayError("Received request to change PUBKEY but PUBKEY not found");
+            }
+        } catch (Exception e) {
+            displayError(e);
+        }
+
+        if (msg.equals("SYMKEY") && pkg.getSymmSecretKey() != null) {
+            displayMsg("RECEIVED SYMKEY " + pkg.getSymmSecretKey());
+            byte[] decodedKey = Base64.getDecoder().decode(pkg.getSymmSecretKey());
+            SecretKey sym = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES/CBC/PKCS5Padding");
+            me.setSymmetric(sym);
+            System.out.println(sym.getEncoded());
+            displayMsg("SET SYMKEY " + me.getSymmetricKey().getEncoded());
+        }
+       
+        // Check integrity of message
+        try {
+            if (integ) {
+                if (me.theirPublic == null) throw new Exception("No public key");
+                String fp = pkg.getFingerprint();
+                goodFingerprint = me.verifySignature("", fp);
+            }
+        } catch (Exception e) {
+            displayError("Unable to verify fingerprint.");
+            displayError(e);
+        }
+
+        // Try to decrypt message
+        try {
+            if (conf && pkg.getPublicKey() == null) {
+                byte[] iv = pkg.getIV();
+                msg = me.decryptSymmetric(msg, iv);   
+            }
+        } catch (Exception e) {
+            displayError("Unable to decrypt message");
+            displayError(e);
+        }
+
+        try {
+            displayMsg(msg);
         } catch (Exception e) {
             displayError(e);
         }
@@ -202,6 +299,7 @@ public class Messenger implements Message {
      */
     public void sendPackage (MessagePackage pkg) {
         try {
+            displayMsg("Sending fp " + pkg.getFingerprint() +"\nSending pub " + pkg.getPublicKey());            
             if (isServer) theirStub.receivePackage(pkg);
             else stub.receivePackage (pkg);
         } catch (Exception e) {
@@ -239,19 +337,29 @@ public class Messenger implements Message {
     public void pollForInput () {
         while (true) {
             String msg = promptStrInput("");
-            String fp = "";
-            byte[] iv = me.generateIV();
+            String fp;
+            MessagePackage pkg;
             try {
-                if (conf) msg = me.encryptSymmetric(msg, iv);
+                if (conf) {
+                    byte[] iv = me.generateIV();
+                    msg = me.encryptSymmetric(msg, iv);
+                }
             } catch (Exception e) {
                 displayError("Unable to enrypt messages.");
                 displayError(e);
             }
-            displayMsg(msg);
-            // if (integ) fp = fingerprint(message); 
-            // MessagePackage pkg = (fp != "") ? new MessagePackage(msg, fp) : new MessagePackage(msg);
-            MessagePackage pkg = new MessagePackage(msg, fp);
-            sendPackage(pkg);
+
+            // Include fingerprint if integ selected
+            try {
+                if (integ) pkg = new MessagePackage(msg, me.sign(msg));
+                else pkg = new MessagePackage(msg);
+                if (conf) pkg.setIV(iv);
+                displayMsg("Message fingerprint: " + pkg.getFingerprint());            
+                sendPackage(pkg);
+            } catch (Exception e) {
+                displayError("Unable to sign package");
+                displayError(e);
+            }
         }
     }
 
@@ -296,15 +404,38 @@ public class Messenger implements Message {
             Message serverStub = (Message) UnicastRemoteObject.exportObject(this, 0);            
             registerWithRMI(serverStub);
 
-            MessagePackage initPackage = new MessagePackage("Initilization from Client to Server");
+            // Build a package to send to S
+            MessagePackage initPackage;
+            String msg = "INIT C TO S";
+            // Sign message if integrity
+            if (integ) initPackage= new MessagePackage(msg, me.sign(msg));
+            else initPackage = new MessagePackage(msg);
+            // Include our options and name
             initPackage.setInitOptions(conf, integ, auth);
             initPackage.setDeviceName(localName);
-            boolean connected = stub.initConnection(initPackage);
-            if (connected) displayMsg("Connected to server.");
-            else {
-                displayError("Disconnected from server. Check security options.");
-                System.exit(1);
-            }
+            // Include our public key so they can encrypt messages for only us
+            if (conf) initPackage.setPublicKey(me.getOurPublicKey());            
+            stub.initConnection(initPackage);
+
+            // Check response and set their public key
+            // if (connected) {
+            //     displayMsg("Connected to server.");
+            //     try {
+            //         me.setTheirPublicKey(response.getPublicKey());
+            //     } catch (Exception e) {
+            //         displayError("Not able to set their public key.");
+            //         displayError(e);
+            //     }
+            //     SecretKey sym = me.getSymmetricKey();
+            //     String strSym = Base64.getEncoder().encodeToString(sym.getEncoded());
+            //     MessagePackage pkg = new MessagePackage("SYMKEY");
+            //     pkg.setSymmSecretKey(strSym);
+
+            //     sendPackage(pkg);
+            // } else {
+            //     displayError("Disconnected from server. Check security options.");
+            //     System.exit(1);
+            // }
             // stub.receiveMessage("Test message to test sending messages from C -> S");
         } catch (ConnectException e) {
             displayError("Error: Server refused to connect.");
@@ -335,6 +466,10 @@ public class Messenger implements Message {
                 }
             }
             return stub;
+        } catch (ConnectException e) {
+            displayError("No server started.");
+            System.exit(1);
+            return null;
         } catch (RemoteException e) {
             displayError(e);
             return null;

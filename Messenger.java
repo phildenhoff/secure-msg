@@ -213,25 +213,29 @@ public class Messenger implements Message {
         }
     }
 
+    /**
+     * Authenticate local user with stored password.
+     */
     private boolean authenticate() {
         boolean authenticated = false;
-        String fileName = "./secure/pass";
+        String fileName = "./secure/pass"; // definitely Linux compatible. Not sure about Windows.
         String localPass = "";
         String hashedLocal;
         String inputPass;
         String hashedInput;
-        //read file into stream, try-with-resources
+
         try {
-            localPass = new String(Files.readAllBytes(Paths.get(fileName))).replaceAll("\\s+","");
+            localPass = new String(Files.readAllBytes(Paths.get(fileName))).replaceAll("\\s+","");  // Read passfile from file and strip whitespace
             hashedLocal = me.hashString(localPass);
-            inputPass = promptStrInput("Enter password:").replaceAll("\\s+","");
+            inputPass = promptStrInput("Enter password:").replaceAll("\\s+","");  // strip whitespace from input
             hashedInput = me.hashString(inputPass);
+
             if (hashedInput.equals(hashedLocal)) authenticated = true;
             else {
                 displayMsg("Password does not match.");
             }
         } catch (IOException e) {
-            displayError("/secure/pass file missing or inaccessible");
+            displayError("./secure/pass file missing or inaccessible");
             displayError(e);
             System.exit(1);
         } catch (Exception e) {
@@ -301,8 +305,7 @@ public class Messenger implements Message {
             displayError(e);
         }
 
-        // Check password if auth
-        if (auth) {
+        if (auth) { // Requires CIA file to be set up first
             if (!authenticate()) System.exit(1);
         }
 

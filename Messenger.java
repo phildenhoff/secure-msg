@@ -444,27 +444,6 @@ public class Messenger implements Message {
             // Include our public key so they can encrypt messages for only us
             if (conf) initPackage.setPublicKey(me.getOurPublicKey());            
             stub.initConnection(initPackage);
-
-            // Check response and set their public key
-            // if (connected) {
-            //     displayMsg("Connected to server.");
-            //     try {
-            //         me.setTheirPublicKey(response.getPublicKey());
-            //     } catch (Exception e) {
-            //         displayError("Not able to set their public key.");
-            //         displayError(e);
-            //     }
-            //     SecretKey sym = me.getSymmetricKey();
-            //     String strSym = Base64.getEncoder().encodeToString(sym.getEncoded());
-            //     MessagePackage pkg = new MessagePackage("SYMKEY");
-            //     pkg.setSymmSecretKey(strSym);
-
-            //     sendPackage(pkg);
-            // } else {
-            //     displayError("Disconnected from server. Check security options.");
-            //     System.exit(1);
-            // }
-            // stub.receiveMessage("Test message to test sending messages from C -> S");
         } catch (ConnectException e) {
             displayError("Error: Server refused to connect.");
         } catch (Exception e) {

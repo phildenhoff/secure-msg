@@ -260,6 +260,7 @@ public class Messenger implements Message {
                 me.generateSymmetricKey();
 
                 String symKey = me.secretKeyToString();
+                displayMsg("Symmetric key is : " + symKey);
                 symKey = me.encryptTheirPublic(symKey);
 
                 MessagePackage resp;
@@ -282,9 +283,28 @@ public class Messenger implements Message {
          */
         if (msg.equals("SYMKEY") && pkg.getSymmSecretKey() != null) {
             // TODO: confirm integrity of symKey if integ set
-            displayMsg("RECEIVED SYMKEY " + pkg.getSymmSecretKey());
-            me.stringToSecretKey(pkg.getSymmSecretKey());
+            String unecryptedKey = pkg.getSymmSecretKey();
+            try {
+                if (conf) unecryptedKey = me.decryptPrivate(pkg.getSymmSecretKey());
+            } catch (Exception e) {
+                displayError(e);
+            }
+
+            try {
+                if (integ) {
+                    if (!me.verifySignature(pkg.getSymmSecretKey(), pkg.getFingerprint())) {
+                        displayError("Symmetric key signature was not verified.");
+                        System.exit(1);
+                    }
+                }
+            } catch (Exception e) {
+                displayError(e);
+            }
+
+            displayMsg("RECEIVED SYMKEY " + unecryptedKey);
+            SecretKey key = me.stringToSecretKey(unecryptedKey);
             displayMsg("SET SYMKEY " + me.getSymmetricKey().toString());
+            displayMsg("LOC SYMKEY " + key.toString());
             return;
         }
        
@@ -296,7 +316,7 @@ public class Messenger implements Message {
                 goodFingerprint = me.verifySignature("", fp);
             }
         } catch (Exception e) {
-            displayError("Unable to verify fingerprint.");
+            displayError("Fingerprint does not match message.");
             displayError(e);
         }
 
@@ -368,7 +388,7 @@ public class Messenger implements Message {
             byte[] iv = null;
             try {
                 if (conf) {
-                    displayMsg("Sym key" + me.getSymmetricKey().getEncoded());
+                    displayMsg("Sym key" + me.getSymmetricKey());
                     iv = me.generateIV();
                     msg = me.encryptSymmetric(msg, iv);
                 }

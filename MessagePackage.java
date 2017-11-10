@@ -91,7 +91,7 @@ class MessagePackage implements java.io.Serializable {
 	/**
      * Sets the symmetric key.
      */
-    public void setSymmSecretKey (SecretKey symmetricKey) {
+    public void setSymmSecretKey (String symmetricKey) {
         this.symmetricKey = symmetricKey;
     }
 
@@ -100,7 +100,7 @@ class MessagePackage implements java.io.Serializable {
      * 
      * @return the symmetric key used as a SecretKey
      */
-    public SecretKey getSymmSecretKey () {
+    public String getSymmSecretKey () {
        return this.symmetricKey;
     }
 

@@ -120,7 +120,7 @@ public class CIA {
 	 * @return their public key
      */
 	public PublicKey getTheirPublicKey(){
-		return theirPub;
+		return theirPublic;
 	}
 	
 	/**

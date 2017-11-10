@@ -31,7 +31,7 @@ public class CIA {
 	 * @param boolean integrity: True if integrity selected
      * @param boolean authentication: True if authentication selected
      */
-	public CIA(boolean confidentiality, boolean integrity, boolean authentication) throws Exception {
+	public CIA(boolean confidentiality, boolean integrity) throws Exception {
 		if(confidentiality || integrity){
 			generateAsymmetricKeys();
 		}
@@ -284,7 +284,7 @@ public class CIA {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		CIA cia = new CIA(true, true, true);
+		CIA cia = new CIA(true, true);
 		cia.testing();
 	}
 }

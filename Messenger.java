@@ -25,6 +25,9 @@ import java.nio.file.Paths;
 
 
 public class Messenger implements Message {
+    Boolean VERBOSE = false; // Change this line to "true" and re-compile to see changes.
+
+
     /**
 	 * True if the device is the server
 	 */
@@ -129,7 +132,7 @@ public class Messenger implements Message {
             badOptions += "'integ' ";
             validInit = false;
         }
-        if (theirOptions[1] != this.auth) {
+        if (theirOptions[2] != this.auth) {
             badOptions += "'auth' ";
             validInit = false;
         }
@@ -144,7 +147,7 @@ public class Messenger implements Message {
             theirStub = (Message) reg.lookup(pkg.getDeviceName());
 
             // Read message and relay conection succeeded
-            if (conf) me.setTheirPublicKey(pkg.getPublicKey());
+            if (conf || integ) me.setTheirPublicKey(pkg.getPublicKey());
             // Tell client we are connected
             theirStub.receiveMessage(localName + " connected to you!");
             
@@ -160,12 +163,12 @@ public class Messenger implements Message {
                 resp = new MessagePackage(msg);
             }
             // If confidentiality, include our public key
-            if (conf) {
+            if (conf || integ) {
                 resp.setPublicKey(me.getOurPublicKey());
             }
 
-            displayMsg("Sending fp " + resp.getFingerprint() +"\nSending pub " + resp.getPublicKey());
-            theirStub.receivePackage(resp);
+            if (VERBOSE) displayMsg("Sending fp " + resp.getFingerprint() +"\nSending pub " + resp.getPublicKey());
+            if (conf || integ) theirStub.receivePackage(resp);
             
         } catch (NotBoundException e) {
             displayError("\nError: Invalid device name.");
@@ -255,12 +258,12 @@ public class Messenger implements Message {
          */
         try {
             if (msg.equals("PUBKEY") && pkg.getPublicKey() != null) {
-                displayMsg("Setting remote's public key");
+                if (VERBOSE) displayMsg("Setting remote's public key");
                 me.setTheirPublicKey(pkg.getPublicKey());
                 me.generateSymmetricKey();
 
                 String symKey = me.secretKeyToString();
-                displayMsg("Symmetric key is : " + symKey);
+                if (VERBOSE) displayMsg("Symmetric key is : " + symKey);
                 symKey = me.encryptTheirPublic(symKey);
 
                 MessagePackage resp;
@@ -276,6 +279,7 @@ public class Messenger implements Message {
             }
         } catch (Exception e) {
             displayError(e);
+            return;
         }
 
         /**
@@ -288,6 +292,7 @@ public class Messenger implements Message {
                 if (conf) unecryptedKey = me.decryptPrivate(pkg.getSymmSecretKey());
             } catch (Exception e) {
                 displayError(e);
+                return;
             }
 
             try {
@@ -299,12 +304,12 @@ public class Messenger implements Message {
                 }
             } catch (Exception e) {
                 displayError(e);
+                return;
             }
 
-            displayMsg("RECEIVED SYMKEY " + unecryptedKey);
+            if (VERBOSE) displayMsg("RECEIVED SYMKEY " + unecryptedKey);
             SecretKey key = me.stringToSecretKey(unecryptedKey);
-            displayMsg("SET SYMKEY " + me.getSymmetricKey().toString());
-            displayMsg("LOC SYMKEY " + key.toString());
+            if (VERBOSE) displayMsg("SET SYMKEY " + me.getSymmetricKey().toString());
             return;
         }
        
@@ -318,6 +323,7 @@ public class Messenger implements Message {
         } catch (Exception e) {
             displayError("Fingerprint does not match message.");
             displayError(e);
+            return;
         }
 
         // Try to decrypt message
@@ -329,12 +335,20 @@ public class Messenger implements Message {
         } catch (Exception e) {
             displayError("Unable to decrypt message");
             displayError(e);
+            return;
         }
 
         try {
-            displayMsg(msg);
+            String out = "";
+            if (pkg.getDeviceName() != "" && pkg.getDeviceName() != null) {
+                out = pkg.getDeviceName() + ": " + msg;
+            } else {
+                out = msg;
+            }
+            displayMsg(out);
         } catch (Exception e) {
             displayError(e);
+            return;
         }
     }
 
@@ -345,7 +359,7 @@ public class Messenger implements Message {
      */
     public void sendPackage (MessagePackage pkg) {
         try {
-            displayMsg("Sending fp " + pkg.getFingerprint() +"\nSending pub " + pkg.getPublicKey());            
+            if (VERBOSE) displayMsg("Sending fp " + pkg.getFingerprint() +"\nSending pub " + pkg.getPublicKey());            
             if (isServer) theirStub.receivePackage(pkg);
             else stub.receivePackage (pkg);
         } catch (Exception e) {
@@ -388,7 +402,7 @@ public class Messenger implements Message {
             byte[] iv = null;
             try {
                 if (conf) {
-                    displayMsg("Sym key" + me.getSymmetricKey());
+                    if (VERBOSE) displayMsg("Sym key" + me.getSymmetricKey());
                     iv = me.generateIV();
                     msg = me.encryptSymmetric(msg, iv);
                 }
@@ -402,7 +416,8 @@ public class Messenger implements Message {
                 if (integ) pkg = new MessagePackage(msg, me.sign(msg));
                 else pkg = new MessagePackage(msg);
                 if (conf && iv != null) pkg.setIV(iv);
-                displayMsg("Message fingerprint: " + pkg.getFingerprint());            
+                if (VERBOSE) displayMsg("Message fingerprint: " + pkg.getFingerprint());
+                pkg.setDeviceName(localName);          
                 sendPackage(pkg);
             } catch (Exception e) {
                 displayError("Unable to sign package");
@@ -430,7 +445,7 @@ public class Messenger implements Message {
 
             if (hashedInput.equals(hashedLocal)) authenticated = true;
             else {
-                displayMsg("Password does not match.");
+                displayError("Password does not match.");
             }
         } catch (IOException e) {
             displayError("./secure/pass file missing or inaccessible");
@@ -462,7 +477,7 @@ public class Messenger implements Message {
             initPackage.setInitOptions(conf, integ, auth);
             initPackage.setDeviceName(localName);
             // Include our public key so they can encrypt messages for only us
-            if (conf) initPackage.setPublicKey(me.getOurPublicKey());            
+            if (conf || integ) initPackage.setPublicKey(me.getOurPublicKey());            
             stub.initConnection(initPackage);
         } catch (ConnectException e) {
             displayError("Error: Server refused to connect.");
@@ -514,7 +529,7 @@ public class Messenger implements Message {
 
         // Generate a new CIA file with given options
         try {
-            me = new CIA(conf, integ, auth);        
+            me = new CIA(conf, integ);   
         } catch (Exception e) {
             displayError("Not able to generate a CIA file.");
             displayError(e);

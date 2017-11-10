@@ -249,12 +249,6 @@ public class Messenger implements Message {
         boolean goodFingerprint;
         String msg = pkg.getMessage();
 
-        // Display the pieces of the package
-        // displayMsg("fp: " + pkg.getFingerprint());
-        // displayMsg("msg: " + pkg.getMessage());
-        // displayMsg("sym: " + pkg.getSymmSecretKey());
-        // displayMsg("Pub: " + pkg.getPublicKey());
-
         /**
          * Check to see if we're receiving a public key.
          * If so, create a symmetric key, ecnrypt it, and send it back.

@@ -25,15 +25,43 @@ import java.nio.file.Paths;
 
 
 public class Messenger implements Message {
+    /**
+	 * True if the device is the server
+	 */
     private boolean isServer = false;
-    private boolean clientConnected = false;
-    private boolean conf;
-    private boolean integ;
-    private boolean auth;
-    private String localName;
-    private Message stub;
+    /**
+     * True if the client is connected to a server
+     */
+    private boolean clientConnected = false;    
+    /**
+	 * True if user selected confidentiality
+	 */
+	private boolean conf;
+    /**
+	 * True if user selected integrity
+	 */
+	private boolean integ;
+    /**
+	 * True if user selected authentication
+	 */
+	private boolean auth;
+    /**
+	 * The client's connection to the server
+	 */
+	private Message stub;
+    /**
+	 * Our instance of the CIA class
+	 */
+	private CIA me;
+    /**
+	 * The device's name in the RMI registry
+	 */
+	private String localName;
+    /**
+	 * The server's connection to the client
+	 */
     private Message theirStub;
-    private CIA me;
+
 
     /* Server-only functions */
 
@@ -84,7 +112,8 @@ public class Messenger implements Message {
 
     /**
      * Connect only if we can prove their init message follows all our requirements.
-     * @param MessagePackage: pkg should include security options, fingerprint (if necessary), public key, and symmetric key.
+     * 
+	 * @param MessagePackage: pkg should include security options, fingerprint (if necessary), public key, and symmetric key.
      */
     @Override
     public void initConnection (MessagePackage pkg) {
@@ -309,7 +338,7 @@ public class Messenger implements Message {
     }
 
     /**
-     * Let user select server name from registry
+     * Let user select server name from registry.
      */
     public String regName () {
         String mode = (isServer) ? "SERVER MODE" : "CLIENT MODE";

@@ -62,7 +62,6 @@ public class Messenger implements Message {
 	 */
     private Message theirStub;
 
-
     /* Server-only functions */
 
     /**
@@ -256,20 +255,22 @@ public class Messenger implements Message {
         // displayMsg("sym: " + pkg.getSymmSecretKey());
         // displayMsg("Pub: " + pkg.getPublicKey());
 
-        // Check to see if we're receiving a public key.
-        // If so, create a symmetric key, ecnrypt it, and send it back.
+        /**
+         * Check to see if we're receiving a public key.
+         * If so, create a symmetric key, ecnrypt it, and send it back.
+         */
         try {
             if (msg.equals("PUBKEY") && pkg.getPublicKey() != null) {
                 displayMsg("Setting remote's public key");
                 me.setTheirPublicKey(pkg.getPublicKey());
                 me.generateSymmetricKey();
-                SecretKey sym = me.getSymmetricKey();
-                String symKey = Base64.getEncoder().encodeToString(sym.getEncoded());
+
+                String symKey = me.secretKeyToString();
                 symKey = me.encryptTheirPublic(symKey);
 
                 MessagePackage resp;
                 String respMsg = "SYMKEY";
-                if (integ) resp = new MessagePackage(respMsg, me.sign(respMsg));
+                if (integ) resp = new MessagePackage(respMsg, me.sign(symKey));
                 else resp = new MessagePackage(respMsg);
                 resp.setSymmSecretKey(symKey);
 
@@ -282,19 +283,21 @@ public class Messenger implements Message {
             displayError(e);
         }
 
+        /**
+         * Check to see if we're receiving a symmetric key.
+         */
         if (msg.equals("SYMKEY") && pkg.getSymmSecretKey() != null) {
+            // TODO: confirm integrity of symKey if integ set
             displayMsg("RECEIVED SYMKEY " + pkg.getSymmSecretKey());
-            byte[] decodedKey = Base64.getDecoder().decode(pkg.getSymmSecretKey());
-            SecretKey sym = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES/CBC/PKCS5Padding");
-            me.setSymmetric(sym);
-            System.out.println(sym.getEncoded());
-            displayMsg("SET SYMKEY " + me.getSymmetricKey().getEncoded());
+            me.stringToSecretKey(pkg.getSymmSecretKey());
+            displayMsg("SET SYMKEY " + me.getSymmetricKey().toString());
+            return;
         }
        
         // Check integrity of message
         try {
             if (integ) {
-                if (me.theirPublic == null) throw new Exception("No public key");
+                if (me.getTheirPublicKey() == null) throw new Exception("No public key");
                 String fp = pkg.getFingerprint();
                 goodFingerprint = me.verifySignature("", fp);
             }
@@ -368,13 +371,15 @@ public class Messenger implements Message {
             String msg = promptStrInput("");
             String fp;
             MessagePackage pkg;
+            byte[] iv = null;
             try {
                 if (conf) {
-                    byte[] iv = me.generateIV();
+                    displayMsg("Sym key" + me.getSymmetricKey().getEncoded());
+                    iv = me.generateIV();
                     msg = me.encryptSymmetric(msg, iv);
                 }
             } catch (Exception e) {
-                displayError("Unable to enrypt messages.");
+                displayError("Unable to encrypt messages.");
                 displayError(e);
             }
 
@@ -382,7 +387,7 @@ public class Messenger implements Message {
             try {
                 if (integ) pkg = new MessagePackage(msg, me.sign(msg));
                 else pkg = new MessagePackage(msg);
-                if (conf) pkg.setIV(iv);
+                if (conf && iv != null) pkg.setIV(iv);
                 displayMsg("Message fingerprint: " + pkg.getFingerprint());            
                 sendPackage(pkg);
             } catch (Exception e) {
